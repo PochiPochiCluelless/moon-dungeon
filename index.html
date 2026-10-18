@@ -99,23 +99,17 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         <div class="box">
           <h2>manual</h2>
           <ul class="rules">
-          <li><b>めあて</b> 天国へのエレベータを昇る。各階のエレベータの扉(X で調べる)を探して、21階の頂上まで</li>
-          <li><b>移動</b> 矢印キー / WASD / 画面をドラッグ</li>
-          <li><b>攻撃</b> 自動。bisco は麦わら帽子のブーメラン(中距離)、moon は髪の斬撃(近距離・向いている前方だけ)、Pochi は肉球(遠距離・自動で追いかける)</li>
-          <li><b>攻撃力</b> bisco を 1 とすると、Pochi は 0.7、moon は 1.5。レベルアップの「数」で攻撃の数が増える(最大3つまで。moon は前方に素早く重ねて斬る)</li>
-          <li><b>武器</b> 武器屋で買う・宝箱から稀に見つかる。手に入れると自動で装備され、C の持ち物にも出る</li>
-          <li><b>キャラ交代</b> 左下のキャラの顔をタップ(Tab・1〜3キーでも交代)</li>
-          <li><b>X</b> 調べる・話す・宝箱を開ける・エレベータに乗る</li>
-          <li><b>アイテム</b> 持っていると左上にアイコンが出る。タップで使う(キーなら Q = ワイン: 体力回復 / G = タバコ: しばらくバリア(触れた敵を弾き飛ばす) / R = 小説: しばらく飛び道具を跳ね返す)</li>
-          <li><b>お店</b> 赤い宝石の旅人 = 武器屋(深い階ほど強い武器)、緑の宝石の旅人 = 道具屋(ワイン・タバコ・小説)。話しかけて X で買い物</li>
-          <li><b>仕掛け</b> 周期で飛び出す針の床(赤く光ったら出る合図)、青く光る泉(踏むと体力が少し戻る・1回だけ)、宝箱にはたまに罠もある</li>
-          <li><b>旅人</b> 宝石のない旅人は、ひとこと話してくれる</li>
-          <li><b>ボス</b> 5階・10階・21階に待っている。倒すと仲間が増える</li>
-          <li><b>Space</b> 特別な技(ゲージが溜まったら)</li>
-          <li><b>T</b> 首をかしげる(スマホは、右の T ボタン)</li>
-          <li><b>C</b> 持ち物 / <b>M</b> この説明を開く・閉じる</li>
+          <li><b>めあて</b> エレベータで最上階(21階)まで昇る</li>
+          <li><b>移動</b> 矢印キー / WASD / 画面をドラッグ(攻撃は自動)</li>
+          <li><b>ダッシュ</b> X を押しながら、やじるしキー(スマホはドラッグ)で移動。薄い壁をすり抜けられる</li>
+          <li><b>必殺技</b> ゲージが満タンになったら Space(スマホは、キャラをダブルタップ)</li>
+          <li><b>X</b> 調べる・話す・エレベータに乗る</li>
+          <li><b>アイテム</b> 左上のアイコンをタップ(キーは Q・G・R)</li>
+          <li><b>T</b> 首をかしげる(スマホは右の T ボタン)</li>
+          <li><b>仲間の交代</b> 左下の顔をタップ(Tab キー)</li>
+          <li><b>C</b> 持ち物</li>
         </ul>
-          <p class="hint">スマホは、画面をドラッグして動きます。倒れても、先生が続けるかを聞いてくれます。</p>
+          <p class="hint">赤い宝石の旅人は武器屋、緑の宝石の旅人は道具屋です。</p>
           <div class="row"><button id="next" type="button">start</button></div>
         </div>
       </div>
@@ -559,7 +553,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   const JOY = { id: null, x0: 0, y0: 0, moved: false, t0: 0 }, TAP = { t: 0, x: 0, y: 0 };
   const canvasPt = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * (VW / (r.width || VW)), y: (e.clientY - r.top) * (VH / (r.height || VH)) }; };
   const setJoy = (dx, dy) => { const mag = Math.hypot(dx, dy); keys.left = keys.right = keys.up = keys.down = false; if (mag < 14) return; const c = dx / mag, sn = dy / mag; keys.right = c > 0.38; keys.left = c < -0.38; keys.down = sn > 0.38; keys.up = sn < -0.38; };
-  function onDoubleTap(p) { }
+  function onDoubleTap(p) { const px = S.x - (S.camX || 0), py = S.y - 34 - (S.camY || 0); if (Math.hypot(p.x - px, p.y - py) < 56) useSpecial(); }
   cv.addEventListener('pointerdown', e => {
     if (EG || !S || mode !== 'play' || e.button > 0) return;
     const p = canvasPt(e);
@@ -913,7 +907,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     }
   }
   function doTilt() {
-    if (S.tiltT > 0 || S.lock) return; S.tiltT = 1.4; Snd.play('tilt'); const m = S.map; let found = false;
+    if (S.tiltT > 0 || S.lock) return; S.tiltT = 1.4; Snd.play('tilt'); const m = S.map; let found = rlTilt(m);
     for (const sp of (m.tilts || [])) { if (sp.done) continue; if (Math.hypot(S.x - sp.x, S.y - sp.y) < sp.r) { sp.done = true; found = true; setTimeout(() => { const r = TILTFN[sp.fn](m, sp); if (r && r.catch) r.catch(console.error); }, 800); break; } }
     if (!found) setTimeout(() => { if (S && S.map === m) popup('…nothing here.', S.x, S.y - 70); }, 800);
   }
@@ -1538,8 +1532,22 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     if (!isBoss && rr.length && Math.random() < 0.62) { const r = rr[ri(0, rr.length - 1)], wp = Math.random() < 0.6; npcs.push({ id: 'shop', shop: wp ? 'weapon' : 'item', ...at(r.cx, r.cy), col: wp ? '#d02a1e' : '#1fa84a', hair: '#2a2018', lines: [] }); }
     const rp = rooms.filter(r => r !== goal);
     if (rp.length && Math.random() < 0.5) { const r = rp[ri(0, rp.length - 1)]; npcs.push({ id: 'npcp', ...at(ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)), col: NPC_COL[ri(0, NPC_COL.length - 1)], hair: '#3a2a3a', lines: [{ w: '旅人', t: NPC_LINES[ri(0, NPC_LINES.length - 1)] }] }); }
+    let secret = null;
+    if (!isBoss && n >= 2 && Math.random() < 0.7) {
+      const cand = rr.slice().sort(() => Math.random() - 0.5);
+      for (const r of cand) {
+        const x0 = r.x + r.w + 1, y0 = r.cy - 1; let ok = x0 + 4 < w - 1 && y0 >= 2 && y0 + 3 < h - 1;
+        for (let yy = y0 - 2; ok && yy <= y0 + 4; yy++) for (let xx = x0 - 1; xx <= x0 + 4; xx++) if (!g[yy] || g[yy][xx] !== '#') { ok = false; break; }
+        if (!ok || g[r.cy][r.x + r.w] !== '#') continue;
+        rect(g, x0, y0, 3, 3, '_'); secret = { tx: r.x + r.w, ty: r.cy, open: false };
+        objs.push({ kind: 'chest', ...at(x0 + 1, y0 + 1), item: Math.random() < 0.4 ? 'weapon' : 'wine', v: 30 + n * 5, done: false, solid: true }); break;
+      }
+    }
+    const tk = o => Math.round((o.x - 24) / T) + ',' + Math.round((o.y - 44) / T), seen = new Set(), near = o => Math.abs(Math.round((o.x - 24) / T) - st.cx) <= 2 && Math.abs(Math.round((o.y - 44) / T) - st.cy) <= 2;
+    const keep = a => a.filter(o => { const k = tk(o); if (near(o) || seen.has(k)) return false; seen.add(k); return true; });
+    npcs.splice(0, npcs.length, ...keep(npcs)); objs.splice(0, objs.length, ...keep(objs)); traps.splice(0, traps.length, ...traps.filter(o => !near(o) && (o.k === 'spike' || (!seen.has(tk(o)) && seen.add(tk(o))))));
     const tint = n <= 4 ? 'rgba(50,60,110,.30)' : n <= 9 ? 'rgba(70,110,150,.26)' : n <= 14 ? 'rgba(120,160,190,.22)' : n <= 19 ? 'rgba(190,200,160,.2)' : 'rgba(255,240,200,.18)';
-    const m = { id: 'f', W: w, H: h, g, theme: 'dungeon', music: 'dungeon', tint, warps: {}, npcs, enemies, objs, act: {}, rooms, n, start: { tx: st.cx, ty: st.cy }, stairs: { tx: goal.cx, ty: goal.y }, traps, pre: null };
+    const m = { id: 'f', W: w, H: h, g, theme: 'dungeon', music: 'dungeon', tint, warps: {}, npcs, enemies, objs, act: {}, rooms, n, start: { tx: st.cx, ty: st.cy }, stairs: { tx: goal.cx, ty: goal.y }, traps, secret, pre: null };
     if (isBoss) m.boss = mkRl(bossWho(n), goal.cx, goal.cy, n);
     return m;
   }
@@ -1650,9 +1658,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   function rlScale(e, n) { const t = (n - 1) * 0.25; e.tier = t; e.maxhp = Math.ceil(e.hp * (1 + 0.3 * t)); e.hp = e.maxhp; e.spd *= 1 + 0.05 * t; e.dmg = Math.max(e.dmg, Math.round(e.dmg * (1 + 0.18 * t) * 2) / 2); return e; }
   function rlDrawTraps() {
     const m = S.map; if (!m || !m.traps) return;
+    for (const o of m.objs) if (o.kind === 'chest' && o.trap && (o.rev || 0) > S.t) { ctx.save(); ctx.fillStyle = '#ff5040'; ctx.strokeStyle = '#0b0a0e'; ctx.lineWidth = 3; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center'; ctx.strokeText('!', o.x, o.y - 44 + Math.sin(S.t * 8) * 3); ctx.fillText('!', o.x, o.y - 44 + Math.sin(S.t * 8) * 3); ctx.restore(); }
+    if (m.secret && !m.secret.open) { const x = m.secret.tx * T, y = m.secret.ty * T; ctx.save(); ctx.fillStyle = 'rgba(210,210,235,.3)'; ctx.beginPath(); ctx.moveTo(x + 10, y); ctx.lineTo(x + T, y + 8); ctx.lineTo(x + T - 10, y + T); ctx.lineTo(x, y + T - 8); ctx.closePath(); ctx.fill(); ctx.restore(); }
     for (const o of m.traps) {
       ctx.save(); ctx.translate(o.x, o.y);
-      if (o.k === 'spike') { const ph = (S.t + o.ph) % 2.4; ctx.fillStyle = '#2a2a34'; ctx.fillRect(-16, -8, 32, 16);
+      if (o.k === 'spike') { const ph = (S.t + o.ph) % 2.4, vis = (o.rev || 0) > S.t; ctx.globalAlpha = vis ? 1 : 0.22; ctx.fillStyle = vis ? '#5a2a34' : '#2a2a34'; ctx.fillRect(-16, -8, 32, 16); ctx.globalAlpha = 1; if (vis) { ctx.strokeStyle = '#ff5040'; ctx.lineWidth = 2; ctx.strokeRect(-16, -8, 32, 16); }
         if (ph > 1.6) { ctx.fillStyle = '#cfd4de'; ctx.strokeStyle = '#2a2a34'; ctx.lineWidth = 1.5; for (const x of [-10, 0, 10]) { ctx.beginPath(); ctx.moveTo(x - 5, 6); ctx.lineTo(x, -14); ctx.lineTo(x + 5, 6); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
         else if (ph > 1.2) { ctx.fillStyle = '#e04030'; for (const x of [-10, 0, 10]) ctx.fillRect(x - 2, -2, 4, 4); } }
       else { ctx.globalAlpha = o.used ? 0.35 : 0.8 + Math.sin(S.t * 4) * 0.15; ctx.fillStyle = '#7fd0ff'; ctx.strokeStyle = '#e8f8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 20, 11, 0, 0, 6.283); ctx.fill(); ctx.stroke(); }
@@ -1746,6 +1756,15 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   }
   function rlIconTap(p) { for (const o of rlIconList()) if (p.x >= o.x - 2 && p.x <= o.x + o.w + 2 && p.y >= o.y - 2 && p.y <= o.y + o.h + 2) { press(o.key); return true; } return false; }
   function rlSecretEnd() { if (!S || S.lock || S.freeze || S.F.end || mode !== 'play') return; S.F.end = true; S.lock = true; ending(); }
+  function rlTilt(m) {
+    if (!m || m.id !== 'f') return false; let did = false;
+    for (const o of (m.traps || [])) if (o.k === 'spike' && Math.hypot(S.x - o.x, S.y - o.y) < 330) { o.rev = S.t + 5; did = true; }
+    for (const o of m.objs) if (o.kind === 'chest' && o.trap && Math.hypot(S.x - o.x, S.y - o.y) < 330) { o.rev = S.t + 5; did = true; }
+    for (const e of m.enemies) if (!e.dead && Math.hypot(S.x - e.x, S.y - e.y) < 280) { e.stun = Math.max(e.stun || 0, 1.8); popup('?', e.x, e.y - 52); did = true; }
+    const b = m.boss; if (b && b.active && !b.dead && Math.hypot(S.x - b.x, S.y - b.y) < 360 && (S.tiltBossT || 0) <= S.t) { if (b.st === 'walk') { b.st = 'stun'; b.t = 0.9; } S.tiltBossT = S.t + 8; popup('?', b.x, b.y - 100); did = true; }
+    const sc = m.secret; if (sc && !sc.open && Math.hypot(S.x - (sc.tx * T + 24), S.y - (sc.ty * T + 24)) < 170) { sc.open = true; setTile(m, sc.tx, sc.ty, '_'); popup('ひらめき!', S.x, S.y - 70); Snd.play('pickup'); did = true; }
+    return did;
+  }
 // ===== 起動(必ず最後) =====
   requestAnimationFrame(frame);
   $('go').focus({ preventScroll: true });
