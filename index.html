@@ -174,7 +174,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     bag:   { hp: 2, r: 14, spd: 78, dmg: 1 },
     kage:  { hp: 3, r: 14, spd: 52, dmg: 1 },
     shard: { hp: 2, r: 12, spd: 62, dmg: 1 },
-    drake: { hp: 5, r: 18, spd: 66, dmg: 2 }
+    drake: { hp: 5, r: 18, spd: 66, dmg: 2 },
+    archer: { hp: 3, r: 14, spd: 62, dmg: 1 },
+    bomb: { hp: 2, r: 14, spd: 115, dmg: 1 },
+    demon: { hp: 14, r: 24, spd: 70, dmg: 3 },
+    dragon: { hp: 26, r: 30, spd: 52, dmg: 3 }
   };
   function mkEnemy(type, tx, ty) { const d = EST[type], p = at(tx, ty); return { kind: 'enemy', type, home: true, hx: p.x, hy: p.y, x: p.x, y: p.y, hp: d.hp, r: d.r, spd: d.spd, dmg: d.dmg, kx: 0, ky: 0, stun: 0, fl: 0, ph: Math.random() * 6, t: 1 + Math.random() * 2, st: 0, dx: 0, dy: 0, dead: false }; }
   function mkMonk() { const p = at(10, 5); return { kind: 'boss', type: 'monk', x: p.x, y: p.y, hp: 190, maxHp: 190, fireT: 1.6, ringT: 4, fl: 0, dead: false, active: false, show: true, hard: false, summoned: false, r: 44, hy: 62 }; }
@@ -188,7 +192,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   const tierOf = () => Math.min(4, 1 + Math.floor(S.lv / 5));
   const atkMul = who => WMUL[S.equipW[who] || 0] * (1 + ((S.wb && S.wb[who]) || 0)) * (1 + 0.15 * S.up.might) * (1 + 0.12 * (tierOf() - 1));
   const cdMul = () => Math.pow(0.92, S.up.cool), kbMul = () => 1 + 0.25 * S.up.kb;
-  const xpNeed = lv => 6 + lv * 5, XPV = { bag: 3, kage: 4, shard: 4, drake: 7 };
+  const xpNeed = lv => 6 + lv * 5, XPV = { bag: 3, kage: 4, shard: 4, drake: 7, archer: 5, bomb: 4, demon: 14, dragon: 25 };
   const UPS = [
     { id: 'count', t: '数', d: '攻撃の数が一つ増える(最大3つまで)', max: 2 },
     { id: 'speed', t: '足の速さ', d: '歩く速さ +8%', max: 6 }, { id: 'cool', t: 'せっかち', d: '攻撃の間隔 −8%', max: 6 }, { id: 'kb', t: '吹っ飛ばし', d: 'ノックバック +25%', max: 5 },
@@ -679,7 +683,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     if (S.cigT > 0) { S.inv = 0.5; popup('barrier!', S.x, S.y - 70); Snd.play('barrier'); return; }
     if (S.barrier > 0) { S.barrier--; S.barrierT = 10; S.inv = 0.7; popup('barrier!', S.x, S.y - 70); Snd.play('barrier'); ptFx(S.x, S.y - 30, '#9fd8ff', 14, 90); return; }
     d = Math.max(0.5, d * (1 - SRED[S.equipS || 0]));
-    S.hp -= d; S.inv = 1.1; S.shake = 0.2; Snd.play('hurt');
+    S.hp -= d; rlDmg(S.x, S.y - 66, d, '#ff6a6a', true); S.inv = 1.1; S.shake = 0.2; Snd.play('hurt');
     const a = Math.atan2(S.y - sy, S.x - sx), kn = S.map && S.map.id === 'train' ? 70 : 240; S.kx = Math.cos(a) * kn; S.ky = Math.sin(a) * kn;
     if (S.hp <= 0) die();
   }
@@ -695,19 +699,19 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     S.eproj.length = 0; await fadeTo(0, 0.4); S.lock = false;
   }
   function killEnemy(e) {
-    e.dead = true; ptFx(e.x, e.y - 10, '#cfe8ff', 6); Snd.play('pop');
+    e.dead = true; rlOnKill(e); ptFx(e.x, e.y - 10, '#cfe8ff', 6); Snd.play('pop');
     if (Math.random() < 0.3) S.pick.push({ x: e.x, y: e.y, item: 'heart', t: 0 });
     S.xp += XPV[e.type] || 3; S.sp = Math.min(100, S.sp + 6);
     const gv = e.type === 'bag' ? 3 : e.type === 'kage' ? 4 : 5; S.pick.push({ x: e.x + 8, y: e.y, item: 'gold', v: gv + Math.floor(Math.random() * 3), t: 0 });
     checkLevel();
   }
   function dmgEnemy(e, d, kx, ky, stun) {
-    if (e.dead) return; e.hp -= d; e.fl = 0.15; e.kx = kx * kbMul(); e.ky = ky * kbMul(); if (stun) e.stun = stun; Snd.play('hit'); S.sp = Math.min(100, S.sp + 2);
+    if (e.dead) return; e.hp -= d; rlDmg(e.x, e.y - 36 * (e.sz || 1), d, '#fff4c0'); e.fl = 0.15; e.kx = kx * kbMul(); e.ky = ky * kbMul(); if (stun) e.stun = stun; Snd.play('hit'); S.sp = Math.min(100, S.sp + 2);
     if (e.hp <= 0) killEnemy(e);
   }
   function dmgBoss(b, d) {
     if (b.dead || !b.active || b.st === 'leap' || b.inv) return;
-    if (b.st === 'stun' || b.st === 'dizzy') d *= 2; S.sp = Math.min(100, S.sp + 2); b.hp -= d; b.fl = 0.15; Snd.play('hit'); ptFx(b.x, b.y - 40, '#cfe8ff', 4);
+    if (b.st === 'stun' || b.st === 'dizzy') d *= 2; S.sp = Math.min(100, S.sp + 2); b.hp -= d; rlDmg(b.x + (Math.random() - 0.5) * 30, b.y - (b.hy || 40) - 50, d, (b.st === 'stun' || b.st === 'dizzy') ? '#ffb040' : '#fff4c0'); b.fl = 0.15; Snd.play('hit'); ptFx(b.x, b.y - 40, '#cfe8ff', 4);
     if (b.hp <= 0) bossDefeated(b);
   }
   const facingAngle = () => S.aimA !== undefined ? S.aimA : Math.atan2(DIRV[S.dir][1], DIRV[S.dir][0]);
@@ -1060,7 +1064,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     if (e.kx || e.ky) { moveBody(m, e, e.kx * dt, e.ky * dt, e.r - 2, e.r - 2, 'enemy'); e.kx *= Math.exp(-8 * dt); e.ky *= Math.exp(-8 * dt); }
     const dx = S.x - e.x, dy = S.y - e.y, d = Math.hypot(dx, dy) || 1;
     if (e.stun > 0) e.stun -= dt;
-    else if (d < 300 && !S.lock) {
+    else if (d < 300 && !S.lock && !rlAI(e, dt, m, dx, dy, d)) {
       let sp = e.spd * (e.slow || 1), vx = dx / d, vy = dy / d;
       if (e.type === 'bag') { if (e.st === 1) { sp = 230 * (e.slow || 1); if (e.t <= 0) { e.st = 0; e.t = (e.slow ? 2.6 : 1.6) + Math.random(); } } else if (e.t <= 0) { e.st = 1; e.t = 0.55; } }
       if (e.type === 'shard') { if (e.st === 0 && e.t <= 0) { e.st = 1; e.t = 0.5; e.dx = vx; e.dy = vy; } else if (e.st === 1) { sp = 0; if (e.t <= 0) { e.st = 2; e.t = 0.45; } } else if (e.st === 2) { vx = e.dx; vy = e.dy; sp = 260; if (e.t <= 0) { e.st = 0; e.t = 2 + Math.random(); } } }
@@ -1497,6 +1501,15 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     const d = BOSSES[who], p = at(tx, ty), hp = d.hp;
     return { kind: 'boss', type: 'rl', who, k: 0, x: p.x, y: p.y, hx: p.x, hy0: p.y, hp, maxHp: hp, st: 'walk', t: 2, shotT: 2.5, dashT: 4, face: -1, tx: 0, ty: 0, fl: 0, air: 0, dead: false, active: false, show: true, hard: false, rage: false, r: d.r, hy: 40 };
   }
+  function pickType(n) {
+    const w = { bag: Math.max(1, 6 - n / 2), kage: 4, shard: n >= 3 ? 3 : 0, archer: n >= 3 ? 3 : 0, bomb: n >= 4 ? 2 + n / 6 : 0, drake: n >= 5 ? 3 : 0, demon: n >= 8 ? 2 + n / 8 : 0, dragon: n >= 10 ? Math.min(3, 1 + (n - 10) / 5) : 0 };
+    let tot = 0; for (const k in w) tot += w[k]; let r = Math.random() * tot; for (const k in w) { r -= w[k]; if (r <= 0 && w[k] > 0) return k; } return 'bag';
+  }
+  function rlSpawn(type, tx, ty, n) {
+    const e = mkEnemy(type, tx, ty), t = (n - 1) * 0.3, q = Math.random(), big = n >= 2 && q < Math.min(0.45, 0.06 + n * 0.02), huge = n >= 6 && q < Math.min(0.18, (n - 5) * 0.012), roll = huge ? 1.8 : big ? 1.35 : 1, f = huge ? 4 : big ? 2 : 1;
+    e.tier = t; e.sz = roll; e.f = f; e.r = Math.round(e.r * roll); e.maxhp = Math.ceil(e.hp * (1 + 0.4 * t) * f); e.hp = e.maxhp; e.spd *= (1 + 0.05 * t) * (roll > 1 ? 0.9 : 1);
+    e.dmg = Math.max(e.dmg, Math.round(e.dmg * (1 + 0.18 * t) * 2) / 2) + (huge ? 1 : big ? 0.5 : 0); if (type === 'bag') e.split = huge ? 2 : big ? 1 : 0; return e;
+  }
   const NPC_LINES = ["この部屋はいつ来ても夕方みたいだね。", "少なくとも、壜の中のワインが無くなるまでは。", "どこにいるの?  ——虹の彼方に。", "ひっくり返したらいいわ。サウナの砂時計みたいに。", "選ばないという選択肢もあります。", "入口を間違えただけで、出口はいつだって用意されている。", "今日も一日、何もなかった。", "遠くをスフィンクスが歩いている。少し寂しそう。", "知らなかったのは、ジャアネとバイバイの違いだった。", "フレンチドレッシングの作り方は、わからない。"];
   const NPC_COL = ['#7a6aa8', '#8a8f9a', '#a08a60', '#6a8aa0', '#b09ac0'];
   function genFinal() {
@@ -1509,7 +1522,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     const w = 40, h = 28, g = grid(w, h, '#'), rooms = [], isBoss = n === 5 || n === 10, ov = (a, b) => a.x - 2 < b.x + b.w && b.x - 2 < a.x + a.w && a.y - 2 < b.y + b.h && b.y - 2 < a.y + a.h;
     const put = r => { for (const q of rooms) if (ov(r, q)) return false; rooms.push(r); return true; };
     if (isBoss) put({ x: ri(2, w - 15), y: ri(2, h - 13), w: 12, h: 10 });
-    for (let i = 0; i < 300 && rooms.length < (isBoss ? 6 : 7); i++) { const rw = ri(5, 9), rh = ri(4, 7); put({ x: ri(1, w - rw - 2), y: ri(1, h - rh - 2), w: rw, h: rh }); }
+    for (let i = 0; i < 300 && rooms.length < (isBoss ? 6 : 8); i++) { const rw = ri(5, 9), rh = ri(4, 7); put({ x: ri(1, w - rw - 2), y: ri(1, h - rh - 2), w: rw, h: rh }); }
     for (const r of rooms) { rect(g, r.x, r.y, r.w, r.h, '_'); r.cx = r.x + (r.w >> 1); r.cy = r.y + (r.h >> 1); }
     const cl = (v, a, b) => Math.max(a, Math.min(b, v));
     const carve = (a, b) => { let x = a.cx, y = a.cy; while (x !== b.cx) { x += x < b.cx ? 1 : -1; g[y][x] = '_'; g[cl(y + 1, 1, h - 2)][x] = '_'; } while (y !== b.cy) { y += y < b.cy ? 1 : -1; g[y][x] = '_'; g[y][cl(x + 1, 1, w - 2)] = '_'; } };
@@ -1520,8 +1533,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     rooms.forEach((r, i) => {
       if (r === st) return;
       if (!(isBoss && r === goal)) {
-        const c = ri(2, 3) + Math.floor(n / 5);
-        for (let k = 0; k < c; k++) { const e = mkEnemy(pool[ri(0, pool.length - 1)], ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)); e.tier = t; e.maxhp = Math.ceil(e.hp * (1 + 0.3 * t)); e.hp = e.maxhp; e.spd *= 1 + 0.05 * t; e.dmg = Math.max(e.dmg, Math.round(e.dmg * (1 + 0.18 * t) * 2) / 2); enemies.push(e); }
+        const c = Math.min(9, ri(3, 4) + Math.floor(n / 3));
+        for (let k = 0; k < c; k++) enemies.push(rlSpawn(pickType(n), ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2), n));
       }
       if (r !== goal && Math.random() < 0.6) objs.push({ kind: 'chest', ...at(ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)), item: (() => { const q = Math.random(); return n >= 2 && q < 0.12 ? 'weapon' : q < 0.55 ? 'wine' : 'gold'; })(), v: 15 + n * 5, trap: n >= 2 && Math.random() < 0.2, done: false, solid: true });
     });
@@ -1639,7 +1652,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     ctx.restore();
   }
   function rlEnemy(e, fl) {
-    const t = S.t + e.ph, hit = fl ? '#fff' : null;
+    const t = S.t + e.ph, hit = fl ? '#fff' : null; if (e.sz && e.sz !== 1) ctx.scale(e.sz, e.sz);
+    if (e.type === 'bomb' || e.type === 'archer' || e.type === 'demon' || e.type === 'dragon') return rlDrawNew(e, hit);
     if (e.type === 'bag') { // スライム
       ctx.translate(0, -2); const sq = 1 + Math.sin(t * 6) * 0.08; ctx.scale(1 / sq, sq); ctx.fillStyle = hit || '#4aa0f0'; ctx.strokeStyle = '#1c4a8a'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(0, -38); ctx.quadraticCurveTo(18, -22, 17, -6); ctx.lineTo(-17, -6); ctx.quadraticCurveTo(-18, -22, 0, -38); ctx.fill(); ctx.stroke();
@@ -1714,6 +1728,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     const b = m.boss; if (b && b.active && !b.dead && ok(b.x, b.y - (b.hy || 30), b.r + 14)) dmgBoss(b, dmg);
   }
   function rlBoom(dt, m) {
+    for (let i = (S.blasts || []).length - 1; i >= 0; i--) { S.blasts[i].t -= dt; if (S.blasts[i].t <= 0) S.blasts.splice(i, 1); }
     if (S.slashQ && S.slashQ.length && !S.lock) for (let i = S.slashQ.length - 1; i >= 0; i--) { const q = S.slashQ[i]; q.t -= dt; if (q.t <= 0) { S.slashQ.splice(i, 1); rlSlash(q.a, q.dmg); } }
     if (S.boomT > 0) S.boomT -= dt; if (S.cigT > 0) S.cigT -= dt; if (S.novT > 0) S.novT -= dt; const B = S.booms || [], P = S.paws || []; if (S.lock) return;
     if (S.cigT > 0) for (const e of m.enemies) { if (e.dead) continue; const dx = e.x - S.x, dy = e.y - S.y, d = Math.hypot(dx, dy) || 1; if (d < 62 + e.r) { e.kx = dx / d * 340; e.ky = dy / d * 340; e.stun = Math.max(e.stun || 0, 0.25); } }
@@ -1735,7 +1750,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
       const o = m.boss; if (o && o.active && !o.dead && !b.hit.has(o) && Math.hypot(o.x - b.x, o.y - (o.hy || 30) - b.y) < o.r + 18) { b.hit.add(o); dmgBoss(o, b.dmg); }
     }
   }
-  function rlDrawBooms() { rlDrawBooms0(); rlDrawDark(); }
+  function rlDrawBooms() { rlDrawBooms0(); rlDrawBlasts(); rlDrawDark(); rlDrawDmg(); }
   function rlDrawBooms0() {
     rlDrawTraps();
     if (S.cigT > 0) { ctx.save(); const rr = 52 + Math.sin(S.t * 8) * 3; ctx.strokeStyle = 'rgba(150,220,255,.9)'; ctx.fillStyle = 'rgba(150,220,255,.18)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(S.x, S.y - 28, rr, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.restore(); }
@@ -1851,6 +1866,56 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     const al = b.alpha === undefined ? 1 : b.alpha; if (al > 0.02) { ctx.save(); ctx.globalAlpha = al; drawRl0(b); ctx.restore(); }
     for (const h of (b.hats || [])) drawHatAt(h.x, h.y, S.t * 16, 1.2);
     for (const p of (b.paws || [])) { ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = '#e8803a'; ctx.strokeStyle = '#6a2a10'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 3, 9, 8, 0, 0, 6.283); ctx.fill(); ctx.stroke(); for (const [x, y] of [[-8, -7], [-3, -11], [3, -11], [8, -7]]) { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.283); ctx.fill(); ctx.stroke(); } ctx.restore(); }
+  }
+  function rlBlast(x, y, r, dmg) { (S.blasts = S.blasts || []).push({ x, y, t: 0.35, max: 0.35, r }); S.shake = 0.3; Snd.play('thud'); ptFx(x, y - 10, '#ff9040', 10); if (Math.hypot(S.x - x, S.y - y) < r + 10) hurtPlayer(dmg, x, y); }
+  function rlAI(e, dt, m, dx, dy, d) {
+    const vx = dx / d, vy = dy / d, ty = e.type, tr = e.tier || 0, mvE = (ax, ay, sp) => { moveBody(m, e, ax * sp * dt, 0, e.r - 2, e.r - 2, 'enemy'); moveBody(m, e, 0, ay * sp * dt, e.r - 2, e.r - 2, 'enemy'); };
+    const shot = (x, y, a, sp) => S.eproj.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 2.4 }), sl = e.slow || 1;
+    if (ty === 'drake') { if (tr >= 2 && e.t <= 0 && d < 260) { e.t = 2.6 + Math.random(); shot(e.x, e.y - 20, Math.atan2(dy, dx), 200); Snd.play('shard'); } return false; }
+    if (ty === 'archer') {
+      if (d < 150) mvE(-vx, -vy, e.spd * sl); else if (d > 250) mvE(vx, vy, e.spd * sl); else { e.dir = e.dir || 1; if (Math.random() < 0.01) e.dir = -e.dir; mvE(-vy * e.dir, vx * e.dir, e.spd * sl * 0.8); }
+      if (e.t <= 0) { e.t = Math.max(1.0, 2.3 - tr * 0.1) + Math.random() * 0.6; const n = tr >= 3 ? 3 : 1; for (let k = 0; k < n; k++) shot(e.x, e.y - 22, Math.atan2(dy, dx) + (k - (n - 1) / 2) * 0.22, 230); Snd.play('shard'); }
+      return true;
+    }
+    if (ty === 'demon') {
+      if (e.st === 0) { mvE(vx, vy, e.spd * sl); if (e.t <= 0) { e.st = 1; e.t = 0.6; e.dx = vx; e.dy = vy; } }
+      else if (e.st === 1) { if (e.t <= 0) { e.st = 2; e.t = 0.45; } }
+      else { mvE(e.dx, e.dy, 300 * sl); if (e.t <= 0) { e.st = 0; e.t = 2.2 + Math.random(); if (tr >= 1) for (let k = 0; k < 8; k++) shot(e.x, e.y - 24, k / 8 * 6.283, 150); } }
+      return true;
+    }
+    if (ty === 'dragon') {
+      if (e.st === 0) { if (d > 200) mvE(vx, vy, e.spd * sl); if (e.t <= 0 && d < 340) { e.st = 1; e.t = 0.55; } }
+      else { if (e.t <= 0) { const n = 5 + Math.min(4, Math.floor(tr / 2)); for (let k = 0; k < n; k++) shot(e.x, e.y - 30, Math.atan2(dy, dx) + (k - (n - 1) / 2) * 0.26, 200); Snd.play('shard'); e.st = 0; e.t = 3 + Math.random(); } }
+      return true;
+    }
+    if (ty === 'bomb') {
+      if (e.st === 0) { mvE(vx, vy, e.spd * sl); if (d < 78) { e.st = 1; e.t = 0.7; } }
+      else if (e.t <= 0) { rlBlast(e.x, e.y, 95, 2); e.dead = true; }
+      return true;
+    }
+    return false;
+  }
+  function rlOnKill(e) {
+    if (!S.map || S.map.id !== 'f') return;
+    if (e.f > 1) { S.xp += (XPV[e.type] || 3) * (e.f - 1); S.pick.push({ x: e.x - 8, y: e.y, item: 'gold', v: 4 * e.f, t: 0 }); }
+    if (e.type === 'bomb') rlBlast(e.x, e.y, 70, 1);
+    if (e.split > 0) for (const sd of [-1, 1]) { const c = mkEnemy('bag', 0, 0), sz = (e.sz || 1) * 0.7; Object.assign(c, { x: e.x + sd * 18, y: e.y, hx: e.x, hy: e.y, tier: e.tier, sz, f: 1, r: Math.max(10, Math.round(e.r * 0.7)), maxhp: Math.max(1, Math.ceil(e.maxhp * 0.35)), spd: e.spd, dmg: Math.max(1, e.dmg - 0.5), split: e.split - 1, kx: sd * 260, ky: -60, stun: 0.25 }); c.hp = c.maxhp; S.map.enemies.push(c); }
+  }
+  function rlDrawBlasts() { for (const b of (S.blasts || [])) { const p = 1 - b.t / b.max; ctx.save(); ctx.fillStyle = 'rgba(255,140,50,' + (0.3 * (1 - p)) + ')'; ctx.strokeStyle = 'rgba(255,200,90,' + (1 - p) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(b.x, b.y - 10, b.r * (0.35 + 0.65 * p), 0, 6.283); ctx.fill(); ctx.stroke(); ctx.restore(); } }
+  function rlDrawNew(e, hit) {
+    const t = S.t + e.ph, f = S.x < e.x ? -1 : 1;
+    if (e.type === 'bomb') { ctx.fillStyle = hit || (e.st === 1 && Math.sin(S.t * 34) > 0 ? '#e83a20' : '#2a2a34'); ctx.strokeStyle = '#0b0a0e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -17, 15, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#7a7a8a'; ctx.beginPath(); ctx.arc(-5, -22, 4, 0, 6.283); ctx.fill(); ctx.strokeStyle = '#a07a4a'; ctx.beginPath(); ctx.moveTo(0, -31); ctx.quadraticCurveTo(6, -40, 12, -38); ctx.stroke(); ctx.fillStyle = '#ffb030'; ctx.beginPath(); ctx.arc(12, -38, 4 + Math.sin(S.t * 20) * 1.5, 0, 6.283); ctx.fill(); return true; }
+    ctx.scale(f, 1);
+    if (e.type === 'archer') { ctx.fillStyle = hit || '#3a7a4a'; ctx.strokeStyle = '#17301c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-7, -36); ctx.lineTo(7, -36); ctx.lineTo(10, -6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = hit || '#e8c8a0'; ctx.beginPath(); ctx.arc(0, -42, 8, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.fillStyle = hit || '#2a5a34'; ctx.beginPath(); ctx.arc(0, -44, 9, 3.3, 6.1); ctx.fill(); ctx.strokeStyle = '#8a5a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(14, -26, 15, -1.3, 1.3); ctx.stroke(); ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(18, -39); ctx.lineTo(18, -13); ctx.stroke(); return true; }
+    if (e.type === 'demon') { const fw = Math.sin(t * 6) * 5; ctx.fillStyle = hit || '#7a1a3a'; ctx.strokeStyle = '#2a0814'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-14, -44); ctx.lineTo(-40, -62 - fw); ctx.lineTo(-30, -30); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(14, -44); ctx.lineTo(40, -62 - fw); ctx.lineTo(30, -30); ctx.fill(); ctx.stroke(); ctx.fillStyle = hit || '#b02a3a'; ctx.beginPath(); ctx.ellipse(0, -34, 22, 28, 0, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -66, 14, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#e8d8a0'; ctx.beginPath(); ctx.moveTo(-10, -76); ctx.lineTo(-14, -92); ctx.lineTo(-3, -78); ctx.moveTo(10, -76); ctx.lineTo(14, -92); ctx.lineTo(3, -78); ctx.fill(); ctx.fillStyle = e.st === 1 ? '#fff' : '#ffd030'; ctx.fillRect(-8, -69, 5, 5); ctx.fillRect(3, -69, 5, 5); ctx.fillStyle = hit || '#7a1a3a'; ctx.fillRect(-14, -8, 10, 10); ctx.fillRect(4, -8, 10, 10); if (e.st === 1) { ctx.fillStyle = '#ff4030'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -100); } return true; }
+    if (e.type === 'dragon') { const fw = Math.sin(t * 5) * 12, bd = hit || '#3f8f4a', dk = hit || '#2a6a34'; ctx.scale(0.62, 0.62); ctx.lineWidth = 4; ctx.strokeStyle = '#10140c'; ctx.fillStyle = dk; ctx.beginPath(); ctx.moveTo(-10, -70); ctx.lineTo(-70, -120 - fw); ctx.lineTo(-50, -60); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = bd; ctx.beginPath(); ctx.moveTo(-50, -34); ctx.quadraticCurveTo(-96, -20, -84, -60 + fw / 2); ctx.quadraticCurveTo(-70, -40, -40, -44); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.ellipse(-4, -44, 50, 34, 0, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#e8d8a0'; ctx.beginPath(); ctx.ellipse(-2, -34, 28, 20, 0, 0, 6.283); ctx.fill(); ctx.fillStyle = dk; ctx.fillRect(-36, -16, 16, 16); ctx.fillRect(10, -16, 16, 16); ctx.fillStyle = bd; ctx.beginPath(); ctx.moveTo(30, -60); ctx.lineTo(44, -86); ctx.lineTo(70, -82); ctx.lineTo(82, -68); ctx.lineTo(70, -56); ctx.lineTo(40, -48); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = e.st === 1 ? '#ff4020' : '#ffd030'; ctx.fillRect(52, -76, 8, 6); if (e.st === 1) { ctx.fillStyle = 'rgba(255,140,40,.75)'; ctx.beginPath(); ctx.arc(86, -62, 14, 0, 6.283); ctx.fill(); } return true; }
+    return false;
+  }
+  function rlDmg(x, y, v, col, me) { const n = Math.round(v * 10) / 10; (S.dnums = S.dnums || []).push({ x: x + (Math.random() - 0.5) * 14, y, t0: S.t, txt: (me ? '-' : '') + (n % 1 === 0 ? n : n.toFixed(1)), col, big: v >= 4 || me }); if (S.dnums.length > 60) S.dnums.shift(); }
+  function rlDrawDmg() {
+    const a = S.dnums; if (!a || !a.length) return; ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#0b0a0e';
+    for (let i = a.length - 1; i >= 0; i--) { const o = a[i], age = S.t - o.t0; if (age > 0.85 || age < 0) { a.splice(i, 1); continue; } ctx.globalAlpha = Math.min(1, (0.85 - age) * 3); ctx.font = 'bold ' + (o.big ? 21 : 15) + 'px sans-serif'; ctx.fillStyle = o.col; const y = o.y - age * 46; ctx.strokeText(o.txt, o.x, y); ctx.fillText(o.txt, o.x, y); }
+    ctx.restore();
   }
 // ===== 起動(必ず最後) =====
   requestAnimationFrame(frame);
