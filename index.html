@@ -1676,8 +1676,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   }
   let rlHud = null;
   function rlTick() {
-    if (!rlHud) { rlHud = document.createElement('div'); rlHud.style.cssText = 'position:fixed;left:8px;top:8px;z-index:5;color:#f0e6d0;font:14px "Shippori Mincho",serif;text-shadow:0 1px 3px #000;pointer-events:none'; document.body.appendChild(rlHud); }
-    const s = (S.F.floor || 1) + 'F  lv ' + S.lv; if (rlHud.textContent !== s) rlHud.textContent = s;
     const m = S.map; if (!m || !m.traps || S.lock || S.freeze) return;
     for (const o of m.traps) {
       if (o.k === 'spike') { o.up = (S.t + o.ph) % 2.4 > 1.6; if (o.up && Math.hypot(S.x - o.x, S.y - o.y) < 22) hurtPlayer(1, o.x, o.y); }
@@ -1783,6 +1781,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   // ---- 左上のアイテムアイコン(タップで使用)/ 隠しコマンド E ----
   function rlIconList() { const a = []; if (S.items.wine > 0) a.push({ id: 'wine', n: S.items.wine, key: 'q', k: 'Q', tm: 0 }); if ((S.cig || 0) > 0 || S.cigT > 0) a.push({ id: 'cig', n: S.cig || 0, key: 'g', k: 'G', tm: S.cigT > 0 ? S.cigT : 0 }); if ((S.nov || 0) > 0 || S.novT > 0) a.push({ id: 'nov', n: S.nov || 0, key: 'r', k: 'R', tm: S.novT > 0 ? S.novT : 0 }); a.forEach((o, i) => { o.x = 12 + i * 46; o.y = 114; o.w = 40; o.h = 40; }); return a; }
   function rlIcons() {
+    rlFloorHud();
     for (const o of rlIconList()) {
       ctx.save(); ctx.fillStyle = o.tm > 0 ? 'rgba(255,220,150,.9)' : 'rgba(10,6,16,.72)'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeStyle = '#0b0a0e'; ctx.lineWidth = 2; ctx.strokeRect(o.x, o.y, o.w, o.h); ctx.translate(o.x + 20, o.y + 20); ctx.lineWidth = 2;
       if (o.id === 'wine') { ctx.fillStyle = '#7a1c2c'; ctx.fillRect(-6, -4, 12, 18); ctx.fillRect(-2.5, -15, 5, 11); ctx.fillStyle = '#e8d8b0'; ctx.fillRect(-6, 3, 12, 6); }
@@ -1916,6 +1915,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     const a = S.dnums; if (!a || !a.length) return; ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#0b0a0e';
     for (let i = a.length - 1; i >= 0; i--) { const o = a[i], age = S.t - o.t0; if (age > 0.85 || age < 0) { a.splice(i, 1); continue; } ctx.globalAlpha = Math.min(1, (0.85 - age) * 3); ctx.font = 'bold ' + (o.big ? 21 : 15) + 'px sans-serif'; ctx.fillStyle = o.col; const y = o.y - age * 46; ctx.strokeText(o.txt, o.x, y); ctx.fillText(o.txt, o.x, y); }
     ctx.restore();
+  }
+  function rlFloorHud() {
+    const f = S.F.floor || 1, W = ctx.canvas.width, boss = f === 5 || f === 10 || f === 21; ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = '#0b0a0e';
+    ctx.font = 'bold 30px "Shippori Mincho", serif'; ctx.fillStyle = boss ? '#ffb070' : '#fff3d8'; ctx.strokeText(f + 'F', W / 2, 40); ctx.fillText(f + 'F', W / 2, 40);
+    ctx.font = '13px "Shippori Mincho", serif'; ctx.lineWidth = 3; ctx.fillStyle = '#d8c8a8'; const sub = f === 21 ? '最上階' : '/ 21'; ctx.strokeText(sub, W / 2, 58); ctx.fillText(sub, W / 2, 58); ctx.restore();
   }
 // ===== 起動(必ず最後) =====
   requestAnimationFrame(frame);
