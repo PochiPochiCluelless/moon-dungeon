@@ -1292,7 +1292,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   async function onEnter(id) {  }
   async function runIntro() {
     S.lock = true; await fadeTo(0, 0.6);
-    await dialog([{ w: 'bisco', t: '天国はどこにある' }, { w: null, t: 'エレベータ(X で調べる)を見つけて、昇っていこう。' }]);
+    await dialog([{ w: 'bisco', t: '天国はどこにある' }, { w: 'bisco', t: 'エレベータを探して、昇っていこう。(X で調べる)' }]);
     S.lock = false; S.startT = S.t;
   }
   async function talkNpc(n) { if (n.pochi) return; if (n.id === 'sensei') { await senseiGift(n); return; } if (n.shop) { await dialog([{ w: null, t: n.shop === 'weapon' ? '「いい武器が入っているよ」旅の武器屋だ。' : '「ワインに、タバコに、小説。何でもあるよ」旅の道具屋だ。' }]); await openShop(n.shop === 'weapon' ? weaponShop(S.F.floor || 1) : itemShop()); return; } await dialog(n.lines); }
@@ -1300,11 +1300,14 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     if (o.kind === 'block') { await blockUse(S.map, o); return; }
     if (o.kind === 'chest') {
       o.done = true; o.open = true; Snd.play('open');
-      if (o.item === 'wine') { S.items.wine += 1; await dialog([{ w: null, t: 'ワインを手に入れた。(Qで飲むと、体力が回復する)' }]); }
-      else if (o.item === 'gold') { S.gold += o.v; Snd.play('coin'); await dialog([{ w: null, t: o.v + ' G を手に入れた。' }]); }
+      if (o.item === 'wine') { S.items.wine += 1; await dialog([rlSay('ワインだ。(Q で飲むと、体力が回復する)')]); }
+      else if (o.item === 'gold') { S.gold += o.v; Snd.play('coin'); await dialog([rlSay('お金だ。' + o.v + ' G。')]); }
+      else if (o.item === 'cig') { S.cig = (S.cig || 0) + 1; Snd.play('pickup'); await dialog([rlSay('タバコだ。(G で吸うと、しばらくバリアが張れる)')]); }
+      else if (o.item === 'nov') { S.nov = (S.nov || 0) + 1; Snd.play('pickup'); await dialog([rlSay('小説だ。(R で読むと、しばらく飛び道具を跳ね返せる)')]); }
+      else if (o.item === 'hup') { S.maxHp += 2; S.hp = S.maxHp; Snd.play('pickup'); await dialog([rlSay('ハートのかけらだ。体力の最大値が増えた。')]); }
       else if (o.item === 'weapon') await rlWeaponFind(o);
       else if (o.item === 'wpn' || o.item === 'shd' || o.item === 'hup' || o.item === 'match') await chestItem(o);
-      else { give(o.item); await dialog([{ w: null, t: (ITEMS[o.item] ? ITEMS[o.item][0] : o.item) + ' を手に入れた。' }]); }
+      else { give(o.item); await dialog([rlSay((ITEMS[o.item] ? ITEMS[o.item][0] : o.item) + ' だ。')]); }
       if (o.trap) { o.trap = false; popup('trap!', S.x, S.y - 70); Snd.play('thud'); const tx = Math.round((o.x - 24) / T), ty = Math.round((o.y - 44) / T), fl = S.F.floor || 1; for (const [dx, dy] of [[-1, 0], [1, 0], [0, 1]]) S.map.enemies.push(rlScale(mkEnemy(fl >= 5 ? 'drake' : 'kage', tx + dx, ty + dy), fl)); }
       return;
     }
@@ -1332,7 +1335,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
       case '4': case '5': case '6': await dialog([{ w: null, t: '灯りが、温かく灯っている。' }]); break;
       case 'u': { const sh = SHOPS.find(q => Math.abs(q.x - it.tx) <= 1); if (!sh) break; await openShop(sh); break; }
       case 'X': if (m.id === 'f') { if ((F.floor || 1) === 20) { S.lock = true; const ok = await rlPassword(); if (ok) await nextFloor(); else S.lock = false; } else await nextFloor(); } break;
-      case 'm': await dialog([{ w: null, t: '薄い壁。向こう側が、透けて見える。(Xを押しながら、走り抜ける)' }]); break;
+      case 'm': await dialog([rlSay('薄い壁だ。向こう側が透けて見える。X を押しながら走れば、抜けられるかも。')]); break;
     }
   }
   async function checkTriggers() {
@@ -1539,7 +1542,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         const c = Math.min(9, ri(3, 4) + Math.floor(n / 3));
         for (let k = 0; k < c; k++) enemies.push(rlSpawn(pickType(n), ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2), n));
       }
-      if (r !== goal && Math.random() < 0.6) objs.push({ kind: 'chest', ...at(ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)), item: (() => { const q = Math.random(); return n >= 2 && q < 0.12 ? 'weapon' : q < 0.55 ? 'wine' : 'gold'; })(), v: 15 + n * 5, trap: n >= 2 && Math.random() < 0.2, done: false, solid: true });
+      if (r !== goal && Math.random() < 0.6) objs.push({ kind: 'chest', ...at(ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)), item: rlChestItem(n), v: 15 + n * 5, trap: n >= 2 && Math.random() < 0.2, done: false, solid: true });
     });
     const rr = rooms.filter(r => r !== st && r !== goal), traps = [];
     if (n >= 2) for (const r of rr) if (Math.random() < 0.5) { const c = ri(3, 6) + Math.floor(n / 6); for (let k = 0; k < c; k++) { const p = at(ri(r.x + 1, r.x + r.w - 2), ri(r.y + 1, r.y + r.h - 2)); traps.push({ k: 'spike', x: p.x, y: p.y, ph: Math.random() * 2.4 }); } }
@@ -1599,8 +1602,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     S.lock = true; S.F.floor = (S.F.floor || 1) + 1; await fadeTo(1, 0.3);
     S.world.f = genFloor(S.F.floor); const m = S.world.f; S.booms = []; S.paws = []; S.slashQ = []; loadMap('f', m.start.tx, m.start.ty, 'down'); S.eproj.length = 0;
     S.hp = Math.min(S.maxHp, S.hp + 3); await fadeTo(0, 0.3); popup(S.F.floor + 'F', S.x, S.y - 70);
-    await dialog([rlFloorLine()]);
-    if (!S.F.dashHint && m.g.some(r => r.includes('m'))) { S.F.dashHint = true; await dialog([{ w: null, t: '黒い薄い壁がある。X を押しながら走ると、通り抜けられそうだ。' }]); }
+    const lines = [rlFloorLine()];
+    if (m.dark && !S.F.darkHint) { S.F.darkHint = true; lines.push(rlSay('疑うことで見えてくる世界がある。(T で首を傾げる)')); }
+    if (!S.F.dashHint && m.g.some(r => r.includes('m'))) { S.F.dashHint = true; lines.push(rlSay('黒い薄い壁だ。X を押しながら走れば、通り抜けられそうだ。')); }
+    await dialog(lines);
     S.lock = false;
   }
   function overlay(html, setup) { return new Promise(res => { const w = document.createElement('div'); w.style.cssText = 'position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:rgba(10,6,16,.78);font-family:"Shippori Mincho",serif'; w.innerHTML = '<div style="color:#f0e6d0;text-align:center;font-size:16px;line-height:1.9;padding:12px">' + html + '</div>'; document.body.appendChild(w); w.addEventListener('keydown', e => e.stopPropagation(), true); setup(w, v => { w.remove(); res(v); }); }); }
@@ -1630,8 +1635,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   async function rlBossDown(b) {
     const m = S.map; b.dead = true; b.active = false; S.lock = true; S.eproj.length = 0; Snd.play('win'); await wait(0.6);
     if (b.who === 'moon') { await dialog([{ w: 'moon', t: '…ありがとう。' }]); S.F.end = false; await ending(); return; }
-    if (b.who === 'pochi') { if (!S.party.includes('pochi')) S.party.push('pochi'); await dialog([{ w: 'pochi', t: 'ワン!' }, { w: null, t: 'Pochi が、仲間になった。(左下の顔をタップ / Tabで切り替え)' }]); }
-    else { if (!S.party.includes('moon')) S.party.push('moon'); await dialog([{ w: 'moon', t: '本当の私に会いにいくのよ' }, { w: 'bisco', t: '本当の君はどこにいるの？' }, { w: 'moon', t: 'エレベータの頂上に' }, { w: null, t: 'moon が、仲間になった。(左下の顔をタップ / Tabで切り替え)' }]); }
+    if (b.who === 'pochi') { if (!S.party.includes('pochi')) S.party.push('pochi'); await dialog([{ w: 'pochi', t: 'ワン!' }, { w: 'bisco', t: 'Pochi が仲間になった。左下の顔をタップすると、交代できるみたいだ。' }]); }
+    else { if (!S.party.includes('moon')) S.party.push('moon'); await dialog([{ w: 'moon', t: '本当の私に会いにいくのよ' }, { w: 'bisco', t: '本当の君はどこにいるの？' }, { w: 'moon', t: 'エレベータの頂上に' }, { w: 'bisco', t: 'moon が仲間になった。左下の顔をタップすると、交代できるみたいだ。' }]); }
     S.hp = S.maxHp; setTile(m, m.stairs.tx, m.stairs.ty, 'X'); Snd.music(m.music); S.lock = false;
   }
   function updRl(b, dt, m) {
@@ -1793,9 +1798,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   function rlWMul(id, t) { return (WMUL[t] * (1 + ((S.wb && S.wb[id]) || 0))).toFixed(2); }
   async function rlWeaponFind(o, plus) {
     const g = Math.floor(((S.F.floor || 1) - 1) / 2) + 1 + (plus === undefined ? 1 : plus), c = S.party.filter(id => ((S.wg && S.wg[id]) || 0) < g);
-    if (!c.length) { S.gold += 30; Snd.play('coin'); await dialog([{ w: null, t: '30 G を手に入れた。' }]); return; }
-    const id = c[ri(0, c.length - 1)]; rlEquip(id, g); Snd.play('win');
-    await dialog([{ w: null, t: WSH[id] + ' +' + g + ' を見つけた!' }, { w: null, t: NAMES[id] + ' が、自動で装備した。(攻撃 +' + Math.round(0.25 * g * 100) + '%)' }]);
+    if (!c.length) { S.gold += 30; Snd.play('coin'); await dialog([rlSay('お金だ。30 G。')]); return; }
+    const id = c[ri(0, c.length - 1)]; rlEquip(id, g); Snd.play('win'); const pc = '(自動で装備・攻撃 +' + Math.round(0.25 * g * 100) + '%)';
+    await dialog([rlSay('武器だ! ' + WSH[id] + ' +' + g + '。'), { w: id, t: (id === 'pochi' ? wan('…これ、使えそうだ。') : '…これ、使えそうだ。') + pc }]);
   }
   function itemShop() {
     return { name: '道具屋', goods: () => [
@@ -1960,7 +1965,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     await rlWeaponFind(null, 2); showSensei(false); S.map.npcs = S.map.npcs.filter(x => x !== n);
   }
   const FLOOR_LINES = ['ここは、いつ来ても夕方みたいだ。', '赤色は、とても安心する。', 'もう少しで何かが終わるって、嬉しい。', 'ひっくり返したら、まだ続くかな。', '天国は、少し上の方にあるらしい。', '神様は、どのくらい上にいるんだろう。', 'ジャアネとバイバイの違いが、まだわからない。', '虹の彼方には、何があるの?', '遠くをスフィンクスが歩いている気がする。', '青い鳥は、幸せを運んでくるはずなのにね。', '夢だったら、3秒後にはさよならだ。', 'エレベータは、昇っているだけで少し楽しい。', 'フレンチドレッシングの作り方は、まだわからない。', '小さきものは、今ごろ何を食べているかな。', '偽物でも、隣にいるものは本物だった。', '終わりが近づくほど、静かになるね。', 'ワインが、まだ残っているうちは大丈夫。', 'もうすぐ、頂上かな。', '怖くはない。少しだけ、さみしい。', '本当の私に、会えるといいな。'], BARKS = ['ワン。', 'ワン!', 'クゥーン…', 'ワンワン。', '…ワン。'];
-  function rlFloorLine() { const f = S.F.floor || 2, who = S.active; return { w: who, t: who === 'pochi' ? BARKS[f % BARKS.length] : FLOOR_LINES[(f - 2) % FLOOR_LINES.length] }; }
+  function rlFloorLine() { const f = S.F.floor || 2, who = S.active; return { w: who, t: who === 'pochi' ? wan(FLOOR_LINES[(f - 2) % FLOOR_LINES.length]) : FLOOR_LINES[(f - 2) % FLOOR_LINES.length] }; }
   function rlDrawBubble() {
     const b = S.bubble; if (!b) return; const age = S.t - b.t0; if (age > b.dur || age < 0) { S.bubble = null; return; }
     const lines = []; for (let i = 0; i < b.txt.length; i += 15) lines.push(b.txt.slice(i, i + 15)); const w = Math.max(90, 15 * Math.max(...lines.map(l => l.length)) + 20), h = 22 + lines.length * 18, x = S.x - w / 2, y = S.y - 96 - h;
@@ -1969,6 +1974,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   }
   function rlTP(m, t) { return t === m.boss ? { x: t.x, y: t.y - (t.hy || 30) } : { x: t.x, y: t.y - 10 }; }
   function rlTargets(m) { const a = m.enemies.filter(e => !e.dead && Math.hypot(e.x - S.x, e.y - S.y) < 520).sort((p, q) => Math.hypot(p.x - S.x, p.y - S.y) - Math.hypot(q.x - S.x, q.y - S.y)); if (m.boss && m.boss.active && !m.boss.dead) a.push(m.boss); return a; }
+  function wan(t) { return /[。!?]/.test(t) ? t.replace(/([。!?])/, 'ワン$1') : t + 'ワン'; }
+  function rlSay(t) { const w = S.active; return { w, t: w === 'pochi' ? wan(t) : t }; }
+  function rlChestItem(n) { const q = Math.random(); return n >= 2 && q < 0.10 ? 'weapon' : q < 0.34 ? 'wine' : q < 0.46 ? 'cig' : q < 0.58 ? 'nov' : n >= 3 && q < 0.62 ? 'hup' : 'gold'; }
 // ===== 起動(必ず最後) =====
   requestAnimationFrame(frame);
   $('go').focus({ preventScroll: true });
